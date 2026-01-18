@@ -269,10 +269,22 @@ def index():
 @app.route('/health')
 def health():
     """健康检查端点"""
+    db_test_result = None
+    if DB_AVAILABLE and DATABASE_URL:
+        try:
+            from api.db import get_db_connection
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+                    db_test_result = "connected"
+        except Exception as e:
+            db_test_result = f"error: {str(e)}"
+
     status = {
         'status': 'ok',
         'database': DB_AVAILABLE,
         'database_url_set': bool(DATABASE_URL),
+        'database_connection': db_test_result,
         'template_folder': str(template_folder),
         'template_exists': template_folder.exists()
     }
@@ -365,6 +377,12 @@ def download_report(report_id):
 def list_all_reports():
     """列出所有历史报告"""
     try:
+        if not DB_AVAILABLE:
+            return jsonify([])  # 返回空列表而不是报错
+
+        if not DATABASE_URL:
+            return jsonify([])
+
         reports = list_reports(50)
         result = []
         for report in reports:
@@ -378,7 +396,10 @@ def list_all_reports():
             })
         return jsonify(result)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"获取报告列表错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify([])  # 返回空列表，不让前端报错
 
 
 @app.route('/init-db')
