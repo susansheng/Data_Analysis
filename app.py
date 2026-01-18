@@ -147,7 +147,8 @@ def list_reports():
 
 
 if __name__ == '__main__':
-    PORT = 3000  # 使用3000端口
+    # 支持环境变量 PORT，方便部署到云平台
+    PORT = int(os.environ.get('PORT', 5000))
 
     print("\n" + "="*70)
     print("📊 数据分析工具 - Web版本")
@@ -164,4 +165,5 @@ if __name__ == '__main__':
     print("  • 按 Ctrl+C 停止服务")
     print("\n" + "="*70 + "\n")
 
-    app.run(host='127.0.0.1', port=PORT, debug=True, use_reloader=False)
+    # 使用 0.0.0.0 使其可以从外部访问（云部署需要）
+    app.run(host='0.0.0.0', port=PORT, debug=False)
