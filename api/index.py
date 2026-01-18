@@ -15,16 +15,37 @@ from io import BytesIO
 import traceback
 
 # 添加父目录到路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
+current_dir = Path(__file__).parent
+parent_dir = current_dir.parent
+sys.path.insert(0, str(parent_dir))
 
-# 导入数据库工具和分析功能
-from api.db import save_upload, get_upload, save_report, get_report, list_reports, init_database
+# 尝试导入数据库工具
+try:
+    from api.db import save_upload, get_upload, save_report, get_report, list_reports, init_database
+    DB_AVAILABLE = True
+except Exception as e:
+    print(f"警告: 数据库模块导入失败: {e}")
+    DB_AVAILABLE = False
+
+# Flask 应用配置
+template_folder = parent_dir / 'templates'
+static_folder = parent_dir / 'static'
+
+print(f"Template folder: {template_folder}, exists: {template_folder.exists()}")
+print(f"Static folder: {static_folder}, exists: {static_folder.exists()}")
 
 app = Flask(__name__,
-            template_folder=str(Path(__file__).parent.parent / 'templates'),
-            static_folder=str(Path(__file__).parent.parent / 'static'))
+            template_folder=str(template_folder),
+            static_folder=str(static_folder))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
+
+# 检查环境变量
+DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
+if not DATABASE_URL:
+    print("警告: 未设置 DATABASE_URL 环境变量")
+else:
+    print(f"数据库连接已配置: {DATABASE_URL[:30]}...")
 
 ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
 
@@ -237,13 +258,35 @@ def generate_simple_html_report(filename, rows, original_rows, ctr, click_cvr, o
 @app.route('/')
 def index():
     """主页"""
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        error_msg = f"错误: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        return f"<h1>服务器错误</h1><pre>{error_msg}</pre>", 500
+
+
+@app.route('/health')
+def health():
+    """健康检查端点"""
+    status = {
+        'status': 'ok',
+        'database': DB_AVAILABLE,
+        'database_url_set': bool(DATABASE_URL),
+        'template_folder': str(template_folder),
+        'template_exists': template_folder.exists()
+    }
+    return jsonify(status)
 
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """处理文件上传和分析"""
     try:
+        # 检查数据库是否可用
+        if not DB_AVAILABLE:
+            return jsonify({'error': '数据库未配置，请联系管理员'}), 500
+
         # 检查文件
         if 'file' not in request.files:
             return jsonify({'error': '未选择文件'}), 400
@@ -342,10 +385,18 @@ def list_all_reports():
 def init_db():
     """初始化数据库（仅用于首次部署）"""
     try:
+        if not DB_AVAILABLE:
+            return jsonify({'error': '数据库模块未加载'}), 500
+
+        if not DATABASE_URL:
+            return jsonify({'error': 'DATABASE_URL 环境变量未设置'}), 500
+
         init_database()
         return jsonify({'success': True, 'message': '数据库初始化成功'})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        error_details = traceback.format_exc()
+        print(f"数据库初始化错误: {error_details}")
+        return jsonify({'error': str(e), 'details': error_details}), 500
 
 
 # Vercel 入口点
