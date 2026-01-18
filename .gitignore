@@ -35,3 +35,8 @@ reports/*
 *.tmp
 *.bak
 .cache/
+
+# Vercel
+.vercel
+.env
+.env.local
