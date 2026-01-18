@@ -399,12 +399,9 @@ def init_db():
         return jsonify({'error': str(e), 'details': error_details}), 500
 
 
-# Vercel 入口点
-def handler(request):
-    """Vercel serverless 函数入口"""
-    with app.request_context(request.environ):
-        return app.full_dispatch_request()
-
+# Vercel 需要的 WSGI 应用导出
+# 直接导出 app 对象，Vercel 会自动处理
+application = app
 
 # 本地测试
 if __name__ == '__main__':
