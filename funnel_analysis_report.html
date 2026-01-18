@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 模块转化效能深度分析报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .metric-subtitle {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 8px;
+        }
+
+        .section {
+            margin-bottom: 50px;
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+            border-left: 5px solid #667eea;
+            padding-left: 15px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 40px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tbody tr:hover {
+            background: #f5f7fa;
+        }
+
+        .rank {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .rank.top3 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .insights {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+
+        .insight-item {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .insight-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #e74c3c;
+            margin-bottom: 10px;
+        }
+
+        .insight-content {
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            background: #f8f9fa;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 20px;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 模块转化效能深度分析报告</h1>
+            <p>数据驱动的业务洞察 | 生成时间: 2026-01-15 23:12:25</p>
+            <p style="margin-top: 10px; font-size: 0.95em;">数据来源: 填写页.xlsx | 分析记录: 2,196 条</p>
+        </header>
+
+        <div class="content">
+            <!-- 核心指标卡片 -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">点击率 CTR</div>
+                    <div class="metric-value">9.28%</div>
+                    <div class="metric-subtitle">总曝光 42,868,217</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">点击转化率</div>
+                    <div class="metric-value">49.44%</div>
+                    <div class="metric-subtitle">总点击 3,977,159</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">下单转化率</div>
+                    <div class="metric-value">44.82%</div>
+                    <div class="metric-subtitle">总下单 1,782,729</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">分析周期</div>
+                    <div class="metric-value">31</div>
+                    <div class="metric-subtitle">天数</div>
+                </div>
+            </div>
+
+            <!-- 趋势图表 -->
+            <div class="section">
+                <h2 class="section-title">📈 核心指标趋势分析（最近15天）</h2>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Top 10 对比图 -->
+            <div class="section">
+                <h2 class="section-title">🏆 Top 10 模块效能对比</h2>
+                <div class="chart-container">
+                    <canvas id="top10Chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Top 50 榜单表格 -->
+            <div class="section">
+                <h2 class="section-title">🎯 Top 50 高点击率模块榜单</h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center;">排名</th>
+                                <th>模块名称</th>
+                                <th style="text-align: right;">曝光人数</th>
+                                <th style="text-align: right;">点击人数</th>
+                                <th style="text-align: right;">点击率</th>
+                                <th style="text-align: right;">点击转化率</th>
+                                <th style="text-align: right;">下单转化率</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">46</span></td>
+                                <td><strong>点击_立即预订</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">754,150</td>
+                                <td style="text-align: right;"><span class="badge badge-success">99.55%</span></td>
+                                <td style="text-align: right;">31.4%</td>
+                                <td style="text-align: right;">28.61%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">37</span></td>
+                                <td><strong>点击_填写页_返回上级页面</strong></td>
+                                <td style="text-align: right;">772,837</td>
+                                <td style="text-align: right;">509,705</td>
+                                <td style="text-align: right;"><span class="badge badge-success">65.95%</span></td>
+                                <td style="text-align: right;">27.84%</td>
+                                <td style="text-align: right;">25.02%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">25</span></td>
+                                <td><strong>点击_填写页_底部_费用明细</strong></td>
+                                <td style="text-align: right;">772,837</td>
+                                <td style="text-align: right;">317,410</td>
+                                <td style="text-align: right;"><span class="badge badge-info">41.07%</span></td>
+                                <td style="text-align: right;">32.39%</td>
+                                <td style="text-align: right;">29.32%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">26</span></td>
+                                <td><strong>点击_填写页_挽留弹窗</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">304,134</td>
+                                <td style="text-align: right;"><span class="badge badge-info">40.15%</span></td>
+                                <td style="text-align: right;">29.76%</td>
+                                <td style="text-align: right;">27.02%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">38</span></td>
+                                <td><strong>点击_填写页_选择车行服务</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">244,699</td>
+                                <td style="text-align: right;"><span class="badge badge-info">32.3%</span></td>
+                                <td style="text-align: right;">39.57%</td>
+                                <td style="text-align: right;">36.2%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">24</span></td>
+                                <td><strong>点击_填写页_底部_去支付</strong></td>
+                                <td style="text-align: right;">772,837</td>
+                                <td style="text-align: right;">240,192</td>
+                                <td style="text-align: right;"><span class="badge badge-info">31.08%</span></td>
+                                <td style="text-align: right;">102.79%</td>
+                                <td style="text-align: right;">93.68%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">19</span></td>
+                                <td><strong>点击_填写页_交易快照</strong></td>
+                                <td style="text-align: right;">772,837</td>
+                                <td style="text-align: right;">217,813</td>
+                                <td style="text-align: right;"><span class="badge badge-info">28.18%</span></td>
+                                <td style="text-align: right;">113.19%</td>
+                                <td style="text-align: right;">103.17%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">35</span></td>
+                                <td><strong>点击_填写页_跳转新版订单详情页</strong></td>
+                                <td style="text-align: right;">772,837</td>
+                                <td style="text-align: right;">215,516</td>
+                                <td style="text-align: right;"><span class="badge badge-info">27.89%</span></td>
+                                <td style="text-align: right;">113.28%</td>
+                                <td style="text-align: right;">103.74%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">36</span></td>
+                                <td><strong>点击_填写页_车行服务_服务内容区域</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">145,851</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">19.25%</span></td>
+                                <td style="text-align: right;">40.64%</td>
+                                <td style="text-align: right;">36.82%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">60</span></td>
+                                <td><strong>点击_限制政策</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">98,173</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">12.96%</span></td>
+                                <td style="text-align: right;">40.02%</td>
+                                <td style="text-align: right;">36.22%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">49</span></td>
+                                <td><strong>点击_详情页_增值服务_选择</strong></td>
+                                <td style="text-align: right;">3,787,785</td>
+                                <td style="text-align: right;">433,515</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">11.45%</span></td>
+                                <td style="text-align: right;">41.29%</td>
+                                <td style="text-align: right;">37.62%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">55</span></td>
+                                <td><strong>点击_门店信息</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">65,678</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">8.67%</span></td>
+                                <td style="text-align: right;">47.41%</td>
+                                <td style="text-align: right;">41.87%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank top3">1</span></td>
+                                <td><strong>unkwn</strong></td>
+                                <td style="text-align: right;">15,280</td>
+                                <td style="text-align: right;">1,165</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">7.62%</span></td>
+                                <td style="text-align: right;">77.6%</td>
+                                <td style="text-align: right;">67.64%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">54</span></td>
+                                <td><strong>点击_车行服务详情页_升级或选择此服务按钮</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">55,081</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">7.27%</span></td>
+                                <td style="text-align: right;">47.51%</td>
+                                <td style="text-align: right;">43.39%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">22</span></td>
+                                <td><strong>点击_填写页_取还车地图及指引</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">53,172</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">7.02%</span></td>
+                                <td style="text-align: right;">55.03%</td>
+                                <td style="text-align: right;">49.47%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">28</span></td>
+                                <td><strong>点击_填写页_支付方式_2</strong></td>
+                                <td style="text-align: right;">15,280</td>
+                                <td style="text-align: right;">750</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">4.91%</span></td>
+                                <td style="text-align: right;">92.13%</td>
+                                <td style="text-align: right;">80.53%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">32</span></td>
+                                <td><strong>点击_填写页_航班延迟政策</strong></td>
+                                <td style="text-align: right;">15,280</td>
+                                <td style="text-align: right;">727</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">4.76%</span></td>
+                                <td style="text-align: right;">106.88%</td>
+                                <td style="text-align: right;">92.71%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">43</span></td>
+                                <td><strong>点击_填写页_驾驶员信息_选择区号</strong></td>
+                                <td style="text-align: right;">15,280</td>
+                                <td style="text-align: right;">724</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">4.74%</span></td>
+                                <td style="text-align: right;">101.93%</td>
+                                <td style="text-align: right;">90.19%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">27</span></td>
+                                <td><strong>点击_填写页_支付方式_1</strong></td>
+                                <td style="text-align: right;">15,280</td>
+                                <td style="text-align: right;">661</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">4.33%</span></td>
+                                <td style="text-align: right;">90.32%</td>
+                                <td style="text-align: right;">79.27%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">39</span></td>
+                                <td><strong>点击_填写页_门店政策_顶部</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">31,381</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">4.14%</span></td>
+                                <td style="text-align: right;">52.22%</td>
+                                <td style="text-align: right;">46.09%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">45</span></td>
+                                <td><strong>点击_填写页_驾驶员更多和新增</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">28,118</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">3.71%</span></td>
+                                <td style="text-align: right;">70.9%</td>
+                                <td style="text-align: right;">64.92%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">29</span></td>
+                                <td><strong>点击_填写页_支付方式_3</strong></td>
+                                <td style="text-align: right;">13,105</td>
+                                <td style="text-align: right;">379</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">2.89%</span></td>
+                                <td style="text-align: right;">95.25%</td>
+                                <td style="text-align: right;">79.68%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">42</span></td>
+                                <td><strong>点击_填写页_驾驶员信息_常旅</strong></td>
+                                <td style="text-align: right;">772,837</td>
+                                <td style="text-align: right;">18,946</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">2.45%</span></td>
+                                <td style="text-align: right;">70.6%</td>
+                                <td style="text-align: right;">61.74%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">57</span></td>
+                                <td><strong>点击_门店弹层_评价tab</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">18,003</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">2.38%</span></td>
+                                <td style="text-align: right;">49.18%</td>
+                                <td style="text-align: right;">43.47%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank top3">2</span></td>
+                                <td><strong>填写页押金模块_去授权按钮_点击埋点</strong></td>
+                                <td style="text-align: right;">5,199</td>
+                                <td style="text-align: right;">122</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">2.35%</span></td>
+                                <td style="text-align: right;">86.07%</td>
+                                <td style="text-align: right;">70.49%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">47</span></td>
+                                <td><strong>点击_芝麻弹层_确认</strong></td>
+                                <td style="text-align: right;">4,716</td>
+                                <td style="text-align: right;">108</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">2.29%</span></td>
+                                <td style="text-align: right;">89.81%</td>
+                                <td style="text-align: right;">76.85%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">59</span></td>
+                                <td><strong>点击_门店弹层_费用tab</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">16,192</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">2.14%</span></td>
+                                <td style="text-align: right;">47.18%</td>
+                                <td style="text-align: right;">41.23%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">62</span></td>
+                                <td><strong>点击_驾驶员列表页_添加驾驶员</strong></td>
+                                <td style="text-align: right;">758,089</td>
+                                <td style="text-align: right;">15,547</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">2.05%</span></td>
+                                <td style="text-align: right;">69.65%</td>
+                                <td style="text-align: right;">55.08%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">23</span></td>
+                                <td><strong>点击_填写页_右上角侧边栏按钮点击</strong></td>
+                                <td style="text-align: right;">488</td>
+                                <td style="text-align: right;">10</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">2.05%</span></td>
+                                <td style="text-align: right;">80.0%</td>
+                                <td style="text-align: right;">60.0%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">56</span></td>
+                                <td><strong>点击_门店弹层_订前必读tab</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">14,504</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">1.91%</span></td>
+                                <td style="text-align: right;">51.08%</td>
+                                <td style="text-align: right;">44.95%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">8</span></td>
+                                <td><strong>点击_产品详情页_门店弹层_查看全部评价</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">14,317</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">1.89%</span></td>
+                                <td style="text-align: right;">43.61%</td>
+                                <td style="text-align: right;">38.8%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">20</span></td>
+                                <td><strong>点击_填写页_优惠券</strong></td>
+                                <td style="text-align: right;">772,837</td>
+                                <td style="text-align: right;">14,132</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">1.83%</span></td>
+                                <td style="text-align: right;">59.01%</td>
+                                <td style="text-align: right;">51.85%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">18</span></td>
+                                <td><strong>点击_取车时间不足弹框_调整时间</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">13,447</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">1.78%</span></td>
+                                <td style="text-align: right;">111.59%</td>
+                                <td style="text-align: right;">103.12%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">41</span></td>
+                                <td><strong>点击_填写页_额外驾驶员说明_按钮</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">12,939</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">1.71%</span></td>
+                                <td style="text-align: right;">69.29%</td>
+                                <td style="text-align: right;">62.8%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">10</span></td>
+                                <td><strong>点击_产品详情页_门店弹层_查看更多门店政策</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">12,910</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">1.7%</span></td>
+                                <td style="text-align: right;">44.78%</td>
+                                <td style="text-align: right;">40.5%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">30</span></td>
+                                <td><strong>点击_填写页_查看理赔须知</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">11,969</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">1.58%</span></td>
+                                <td style="text-align: right;">44.16%</td>
+                                <td style="text-align: right;">39.76%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">33</span></td>
+                                <td><strong>点击_填写页_表单验证</strong></td>
+                                <td style="text-align: right;">772,837</td>
+                                <td style="text-align: right;">10,070</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">1.3%</span></td>
+                                <td style="text-align: right;">81.92%</td>
+                                <td style="text-align: right;">68.27%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">58</span></td>
+                                <td><strong>点击_门店弹层_详情tab</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">9,398</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">1.24%</span></td>
+                                <td style="text-align: right;">51.6%</td>
+                                <td style="text-align: right;">45.45%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">53</span></td>
+                                <td><strong>点击_详情页_附加产品</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">8,294</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">1.09%</span></td>
+                                <td style="text-align: right;">49.08%</td>
+                                <td style="text-align: right;">45.55%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">51</span></td>
+                                <td><strong>点击_详情页_租车保障</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">7,002</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.92%</span></td>
+                                <td style="text-align: right;">58.67%</td>
+                                <td style="text-align: right;">43.79%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank top3">3</span></td>
+                                <td><strong>点击_不可用优惠券tab</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">6,343</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.84%</span></td>
+                                <td style="text-align: right;">58.62%</td>
+                                <td style="text-align: right;">51.47%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">48</span></td>
+                                <td><strong>点击_详情页_增值服务_取消</strong></td>
+                                <td style="text-align: right;">1,515,114</td>
+                                <td style="text-align: right;">10,631</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.7%</span></td>
+                                <td style="text-align: right;">55.9%</td>
+                                <td style="text-align: right;">50.82%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">44</span></td>
+                                <td><strong>点击_填写页_驾驶员信息_选择联系人</strong></td>
+                                <td style="text-align: right;">758,062</td>
+                                <td style="text-align: right;">5,262</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.69%</span></td>
+                                <td style="text-align: right;">73.81%</td>
+                                <td style="text-align: right;">64.75%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">16</span></td>
+                                <td><strong>点击_取车时间不足弹框_关闭</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">4,758</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.63%</span></td>
+                                <td style="text-align: right;">97.12%</td>
+                                <td style="text-align: right;">87.81%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">7</span></td>
+                                <td><strong>点击_产品详情页_门店弹层_地图及指引</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">4,645</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.61%</span></td>
+                                <td style="text-align: right;">52.03%</td>
+                                <td style="text-align: right;">44.84%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">12</span></td>
+                                <td><strong>点击_产品详情页_门店弹层_门店实拍</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">4,318</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.57%</span></td>
+                                <td style="text-align: right;">47.01%</td>
+                                <td style="text-align: right;">40.94%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">9</span></td>
+                                <td><strong>点击_产品详情页_门店弹层_查看无忧租</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">2,887</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.38%</span></td>
+                                <td style="text-align: right;">54.35%</td>
+                                <td style="text-align: right;">46.9%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">34</span></td>
+                                <td><strong>点击_填写页_费用明细_小时费收费规则</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">2,807</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.37%</span></td>
+                                <td style="text-align: right;">44.78%</td>
+                                <td style="text-align: right;">40.58%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">31</span></td>
+                                <td><strong>点击_填写页_活动模块</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">2,797</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.37%</span></td>
+                                <td style="text-align: right;">52.59%</td>
+                                <td style="text-align: right;">45.48%</td>
+                            </tr>
+
+                            <tr>
+                                <td style="text-align: center;"><span class="rank ">50</span></td>
+                                <td><strong>点击_详情页_无忧租特权</strong></td>
+                                <td style="text-align: right;">757,557</td>
+                                <td style="text-align: right;">2,702</td>
+                                <td style="text-align: right;"><span class="badge badge-warning">0.36%</span></td>
+                                <td style="text-align: right;">55.22%</td>
+                                <td style="text-align: right;">47.85%</td>
+                            </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 业务洞察 -->
+            <div class="insights">
+                <h2 class="section-title" style="color: white; border-left-color: white;">💡 业务洞察与优化建议</h2>
+
+                <div class="insight-item">
+                    <div class="insight-title">🔍 漏斗流失分析</div>
+                    <div class="insight-content">
+                        <p><strong>最大流失环节:</strong> 曝光到点击 (流失率 90.72%)</p>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>曝光到点击: 90.72% 用户未点击</li>
+                            <li>点击到转化: 50.56% 用户点击后未提交订单</li>
+                            <li>转化到下单: 55.18% 用户提交后未完成预订</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="insight-item">
+                    <div class="insight-title">🎯 优化建议</div>
+                    <div class="insight-content">
+                        <p><strong>针对 曝光到点击 环节:</strong></p>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>优化模块视觉设计，提升吸引力</li><li>调整模块位置，增加曝光质量</li><li>A/B测试不同的文案和图片</li><li>增强CTA按钮的视觉突出度</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="insight-item">
+                    <div class="insight-title">🏆 高价值模块推荐</div>
+                    <div class="insight-content">
+                        <p>以下模块点击率最高，建议重点推广:</p>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+
+                            <li><strong>点击_立即预订</strong>: CTR 99.55%, 下单CVR 28.61%</li>
+
+                            <li><strong>点击_填写页_返回上级页面</strong>: CTR 65.95%, 下单CVR 25.02%</li>
+
+                            <li><strong>点击_填写页_底部_费用明细</strong>: CTR 41.07%, 下单CVR 29.32%</li>
+
+                            <li><strong>点击_填写页_挽留弹窗</strong>: CTR 40.15%, 下单CVR 27.02%</li>
+
+                            <li><strong>点击_填写页_选择车行服务</strong>: CTR 32.3%, 下单CVR 36.2%</li>
+
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>🤖 本报告由数据分析工具自动生成</p>
+            <p style="margin-top: 5px;">数据清洗规则: 剔除点击量 &lt; 10 的长尾数据 | 剔除点击 &gt; 曝光的异常数据</p>
+        </div>
+    </div>
+
+    <script>
+        // 趋势图表
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: ["10-18", "10-19", "10-20", "10-21", "10-22", "10-23", "10-24", "10-25", "10-26", "10-27", "10-28", "10-29", "10-30", "10-31", "11-01"],
+                datasets: [
+                    {
+                        label: '点击率 (CTR)',
+                        data: [9.95, 9.42, 9.33, 9.51, 9.59, 9.49, 9.15, 9.36, 9.7, 9.57, 9.7, 9.39, 9.36, 9.19, 9.74],
+                        borderColor: 'rgb(102, 126, 234)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: '点击转化率',
+                        data: [52.46, 51.95, 53.66, 52.09, 49.81, 49.21, 49.99, 53.47, 51.58, 54.45, 52.83, 48.81, 48.15, 47.59, 54.48],
+                        borderColor: 'rgb(247, 147, 26)',
+                        backgroundColor: 'rgba(247, 147, 26, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: '下单转化率',
+                        data: [48.11, 47.16, 48.85, 47.92, 44.94, 44.85, 45.19, 48.86, 46.73, 49.62, 48.64, 43.95, 43.39, 43.2, 49.69],
+                        borderColor: 'rgb(46, 213, 115)',
+                        backgroundColor: 'rgba(46, 213, 115, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Top 10 对比图
+        const top10Ctx = document.getElementById('top10Chart').getContext('2d');
+        new Chart(top10Ctx, {
+            type: 'bar',
+            data: {
+                labels: ["\u70b9\u51fb_\u7acb\u5373\u9884\u8ba2", "\u70b9\u51fb_\u586b\u5199\u9875_\u8fd4\u56de\u4e0a\u7ea7\u9875\u9762", "\u70b9\u51fb_\u586b\u5199\u9875_\u5e95\u90e8_\u8d39\u7528\u660e\u7ec6", "\u70b9\u51fb_\u586b\u5199\u9875_\u633d\u7559\u5f39\u7a97", "\u70b9\u51fb_\u586b\u5199\u9875_\u9009\u62e9\u8f66\u884c\u670d\u52a1", "\u70b9\u51fb_\u586b\u5199\u9875_\u5e95\u90e8_\u53bb\u652f\u4ed8", "\u70b9\u51fb_\u586b\u5199\u9875_\u4ea4\u6613\u5feb\u7167", "\u70b9\u51fb_\u586b\u5199\u9875_\u8df3\u8f6c\u65b0\u7248\u8ba2\u5355\u8be6\u60c5...", "\u70b9\u51fb_\u586b\u5199\u9875_\u8f66\u884c\u670d\u52a1_\u670d\u52a1\u5185...", "\u70b9\u51fb_\u9650\u5236\u653f\u7b56"],
+                datasets: [
+                    {
+                        label: '点击率 (CTR)',
+                        data: [99.55, 65.95, 41.07, 40.15, 32.3, 31.08, 28.18, 27.89, 19.25, 12.96],
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgb(102, 126, 234)',
+                        borderWidth: 2
+                    },
+                    {
+                        label: '点击转化率',
+                        data: [31.4, 27.84, 32.39, 29.76, 39.57, 102.79, 113.19, 113.28, 40.64, 40.02],
+                        backgroundColor: 'rgba(247, 147, 26, 0.8)',
+                        borderColor: 'rgb(247, 147, 26)',
+                        borderWidth: 2
+                    },
+                    {
+                        label: '下单转化率',
+                        data: [28.61, 25.02, 29.32, 27.02, 36.2, 93.68, 103.17, 103.74, 36.82, 36.22],
+                        backgroundColor: 'rgba(46, 213, 115, 0.8)',
+                        borderColor: 'rgb(46, 213, 115)',
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

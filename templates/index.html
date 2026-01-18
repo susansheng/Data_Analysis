@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 数据分析工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #ccc;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            background: #f8f9fa;
+        }
+
+        .upload-area:hover {
+            border-color: #1e3c72;
+            background: #e8f0ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #1e3c72;
+            background: #d6e6ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 0.9em;
+            color: #999;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-info {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .params {
+            margin: 30px 0;
+        }
+
+        .param-group {
+            margin-bottom: 20px;
+        }
+
+        .param-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .param-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .param-group input:focus {
+            outline: none;
+            border-color: #1e3c72;
+        }
+
+        .param-hint {
+            font-size: 0.85em;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .progress.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1e3c72;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result-success {
+            background: #d4edda;
+            border: 2px solid #c3e6cb;
+            color: #155724;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .result-error {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .result-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .result-info {
+            margin: 10px 0;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            padding: 12px;
+            background: #34495e;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #2c3e50;
+        }
+
+        .btn-primary {
+            flex: 1;
+            padding: 12px;
+            background: #1e3c72;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #2a5298;
+        }
+
+        .history {
+            margin-top: 30px;
+        }
+
+        .history-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .history-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-info {
+            flex: 1;
+        }
+
+        .history-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .history-meta {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .history-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85em;
+            background: #1e3c72;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .btn-small:hover {
+            background: #2a5298;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 数据分析工具</h1>
+            <p>用户行为漏斗分析 · 数据驱动的业务洞察</p>
+            <div class="badge">🔒 100% 本地运行 · 数据不上传云端</div>
+        </header>
+
+        <div class="card">
+            <h2 style="margin-bottom: 20px;">上传数据文件</h2>
+
+            <form id="uploadForm">
+                <!-- 上传区域 -->
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">拖拽文件到这里或点击选择</div>
+                    <div class="upload-hint">支持 .xlsx, .xls, .csv 格式</div>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" required>
+                </div>
+
+                <!-- 文件信息 -->
+                <div class="file-info" id="fileInfo">
+                    <strong>已选择文件:</strong> <span id="fileName"></span>
+                    <br>
+                    <strong>文件大小:</strong> <span id="fileSize"></span>
+                </div>
+
+                <!-- 参数设置 -->
+                <div class="params">
+                    <div class="param-group">
+                        <label for="minClick">最小点击量阈值</label>
+                        <input type="number" id="minClick" name="min_click" value="10" min="1" max="100">
+                        <div class="param-hint">自动过滤点击量小于此值的数据，减少噪音</div>
+                    </div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <button type="submit" class="btn" id="submitBtn">🚀 开始分析</button>
+
+                <!-- 进度显示 -->
+                <div class="progress" id="progress">
+                    <div class="spinner"></div>
+                    <p>正在分析数据，请稍候...</p>
+                </div>
+
+                <!-- 结果显示 -->
+                <div class="result" id="result"></div>
+            </form>
+        </div>
+
+        <!-- 历史报告 -->
+        <div class="card history" id="historyCard" style="display: none;">
+            <div class="history-title">📋 历史报告</div>
+            <div id="historyList"></div>
+        </div>
+
+        <footer>
+            <p>💡 提示: 所有数据均在您的电脑本地处理，未上传任何服务器</p>
+            <p style="margin-top: 10px;">可在完全断网的环境下使用</p>
+        </footer>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const uploadForm = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const progress = document.getElementById('progress');
+        const result = document.getElementById('result');
+
+        // 点击上传区域
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 文件选择
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // 拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                fileName.textContent = file.name;
+                fileSize.textContent = (file.size / 1024).toFixed(2) + ' KB';
+                fileInfo.classList.add('show');
+            }
+        }
+
+        // 表单提交
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('min_click', document.getElementById('minClick').value);
+
+            // 显示进度
+            submitBtn.disabled = true;
+            progress.classList.add('show');
+            result.classList.remove('show');
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                progress.classList.remove('show');
+                submitBtn.disabled = false;
+
+                if (response.ok && data.success) {
+                    // 成功
+                    result.innerHTML = `
+                        <div class="result-success">
+                            <div class="result-title">✅ 分析完成！</div>
+                            <div class="result-info">
+                                <strong>数据文件:</strong> ${data.data_info.filename}<br>
+                                <strong>数据量:</strong> ${data.data_info.rows} 行 × ${data.data_info.columns} 列
+                            </div>
+                            <div class="btn-group">
+                                <a href="${data.report_url}" target="_blank" class="btn-primary">📊 查看报告</a>
+                                <a href="${data.download_url}" class="btn-secondary">📥 下载报告</a>
+                            </div>
+                        </div>
+                    `;
+                    result.classList.add('show');
+
+                    // 刷新历史记录
+                    loadHistory();
+                } else {
+                    // 错误
+                    result.innerHTML = `
+                        <div class="result-error">
+                            <div class="result-title">❌ 分析失败</div>
+                            <p>${data.error || '未知错误'}</p>
+                        </div>
+                    `;
+                    result.classList.add('show');
+                }
+            } catch (error) {
+                progress.classList.remove('show');
+                submitBtn.disabled = false;
+                result.innerHTML = `
+                    <div class="result-error">
+                        <div class="result-title">❌ 发生错误</div>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+                result.classList.add('show');
+            }
+        });
+
+        // 加载历史报告
+        async function loadHistory() {
+            try {
+                const response = await fetch('/reports');
+                const reports = await response.json();
+
+                if (reports.length > 0) {
+                    const historyCard = document.getElementById('historyCard');
+                    const historyList = document.getElementById('historyList');
+
+                    historyList.innerHTML = reports.map(report => `
+                        <div class="history-item">
+                            <div class="history-info">
+                                <div class="history-name">${report.filename}</div>
+                                <div class="history-meta">${report.created} · ${report.size}</div>
+                            </div>
+                            <div class="history-actions">
+                                <a href="${report.view_url}" target="_blank" class="btn-small">查看</a>
+                                <a href="${report.download_url}" class="btn-small">下载</a>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    historyCard.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('加载历史记录失败:', error);
+            }
+        }
+
+        // 页面加载时获取历史记录
+        loadHistory();
+    </script>
+</body>
+</html>
